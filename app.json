@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "GSM Service App",
+    "slug": "gsm-service-app",
+    "scheme": "gsmserviceapp",
+    "version": "1.0.0",
+    "sdkVersion": "52.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#243B55"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pl.gsmserwis.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Aparat jest potrzebny do skanowania kodów kreskowych IMEI.",
+        "NSPhotoLibraryUsageDescription": "Galeria jest potrzebna do dodawania zdjęć do zleceń napraw."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#243B55"
+      },
+      "package": "pl.gsmserwis.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Aparat jest potrzebny do skanowania kodów kreskowych IMEI."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Galeria jest potrzebna do dodawania zdjęć do zleceń napraw."
+        }
+      ]
+    ]
+  }
+}
