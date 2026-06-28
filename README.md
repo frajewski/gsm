@@ -1,122 +1,340 @@
-# 🔧 GSM Service App
+# GSM Service App
 
-Aplikacja mobilna do zarządzania serwisem GSM: zlecenia napraw, rezerwacja terminów online przez klientów, oraz skup i sprzedaż telefonów używanych.  
-Zbudowana w **React Native + Expo**. Działa na Androidzie i iPhonie.  
-Logowanie i konta użytkowników działają przez **Firebase Authentication** (email+hasło, opcjonalnie Google). Dane operacyjne (zlecenia, telefony, terminy) są trzymane w pamięci aplikacji — znikają po jej zamknięciu/restarcie.
+Aplikacja mobilna do obsługi serwisu GSM, napisana w **React Native + Expo**. Projekt służy do zarządzania zleceniami napraw, klientami, statusem urządzeń, kosztorysami, zdjęciami, SMS-ami oraz rolami użytkowników.
+
+Aplikacja korzysta z **Firebase**:
+
+* Firebase Authentication — logowanie i rejestracja użytkowników,
+* Cloud Firestore — trwała baza danych zleceń, użytkowników i liczników,
+* Firebase Cloud Functions — logika backendowa dla ról i panelu webowego,
+* Firebase Hosting / panel webowy — planowane lub osobne środowisko do śledzenia zleceń przez klienta.
+
+Projekt jest rozwijany jako system dla serwisu GSM, z podziałem na aplikację mobilną dla serwisu oraz panel webowy dla klienta / obsługi.
 
 ---
 
-## 📋 Spis treści
+## Spis treści
 
-1. [Co robi aplikacja?](#co-robi-aplikacja)
+1. [Funkcje aplikacji](#funkcje-aplikacji)
 2. [Role użytkowników](#role-użytkowników)
-3. [Czego potrzebujesz przed startem?](#czego-potrzebujesz-przed-startem)
-4. [Konfiguracja Firebase](#konfiguracja-firebase)
-5. [Instalacja krok po kroku](#instalacja-krok-po-kroku)
-6. [Uruchomienie](#uruchomienie)
-7. [Logowanie — jak zacząć](#logowanie--jak-zacząć)
+3. [Firebase i baza danych](#firebase-i-baza-danych)
+4. [Struktura danych Firestore](#struktura-danych-firestore)
+5. [Instalacja](#instalacja)
+6. [Uruchomienie aplikacji](#uruchomienie-aplikacji)
+7. [Build APK / EAS](#build-apk--eas)
 8. [Struktura projektu](#struktura-projektu)
-9. [Najczęstsze problemy](#najczęstsze-problemy)
-10. [Znane ograniczenia](#znane-ograniczenia)
+9. [Panel webowy i śledzenie zleceń](#panel-webowy-i-śledzenie-zleceń)
+10. [Najczęstsze problemy](#najczęstsze-problemy)
+11. [Dalszy rozwój](#dalszy-rozwój)
 
 ---
 
-## Co robi aplikacja?
+## Funkcje aplikacji
 
-### 🔧 Moduł serwisu (naprawy)
-- Przyjmowanie zlecenia: marka, model, IMEI, opis usterki, zdjęcia, blokada ekranu (PIN/wzór)
-- Wybór dokumentu sprzedaży (Paragon / Faktura) — przy fakturze wymagany NIP klienta
-- Wstępny kosztorys: pracownik wpisuje jedną cenę całości (podaną np. telefonicznie przez admina); **rozbicie na części/usługę i marża widoczne są tylko dla admina**
-- Zmiana statusu zlecenia (Przyjęte → W diagnozie → W naprawie → Oczekuje na części → Gotowe → Odebrane)
-- Przy statusie "Odebrane" — wybór okresu gwarancji (brak / 1 / 3 / 6 / 12 miesięcy), automatyczne liczenie daty końca gwarancji
-- Czytelna numeracja zleceń w formacie `N/ROK` (np. `1/2026`), resetująca się co rok
-- Wysyłanie SMS-ów do klienta z gotowych szablonów (otwiera aplikację SMS na telefonie)
-- Drukowane potwierdzenie przyjęcia z danymi klienta, urządzenia, dokumentem sprzedaży i NIP — klient widzi tylko cenę całości, bez rozbicia na marżę
-- Karta klienta z pełną historią napraw
-- Statystyki finansowe (tylko admin): dzienny/miesięczny/roczny zysk, top marki
+### Moduł zleceń napraw
 
-### 📅 Umawianie naprawy (rezerwacja online)
-- Klient wybiera markę, model, opisuje usterkę i wskazuje preferowany termin z kalendarza (najbliższe 14 dni, pon–sob)
-- Admin/pracownik widzi zgłoszenie i może: zaakceptować termin, zaproponować inny, podać wycenę, przypisać pracownika, albo odrzucić z podaniem powodu
-- Po akceptacji — jedno kliknięcie przekształca zgłoszenie w pełne zlecenie naprawy
+Aplikacja umożliwia obsługę zleceń serwisowych:
 
-### 📱 Skup i sprzedaż telefonów używanych
-- Dodawanie telefonu do skupu: marka, model, IMEI (ze skanerem kodu), kolor, **pamięć** (32GB–1TB), grade stanu (A–D), źródło zakupu
-- Oznaczanie blokad: iCloud (Find My), simlock operatora, status "zastrzeżony/zgłoszony jako kradziony"
-- Cena zakupu, cena sprzedaży i zysk — **widoczne tylko dla admina**; pracownik widzi tylko status i podstawowe dane urządzenia
-- Powiązanie telefonu z konkretnym zleceniem naprawy (np. telefon odkupiony po nieudanej naprawie)
-- Raport finansowy skupu (tylko admin)
+* dodawanie nowego zlecenia,
+* wybór klienta,
+* wpisanie marki i modelu urządzenia,
+* wpisanie IMEI,
+* opis usterki,
+* zapis blokady ekranu, np. PIN,
+* wybór dokumentu: Paragon / Faktura,
+* wpisanie NIP dla faktury,
+* dodawanie kosztów:
 
-### 👥 Zarządzanie użytkownikami
-- Admin może zmieniać role innych użytkowników: Klient ↔ Pracownik (przez ekran "Użytkownicy")
-- Rola Admina **nie może zostać przyznana przez standardowy formularz rejestracji** — to zabezpieczenie przed przypadkowym albo złośliwym przejęciem pełnych uprawnień
+  * koszt części,
+  * koszt usługi,
+  * cena całkowita dla klienta,
+* zapisywanie statusu naprawy,
+* historia zmian statusów,
+* zdjęcia urządzenia,
+* karta klienta z historią napraw,
+* numeracja zleceń w formacie `N/ROK`, np. `1/2026`.
+
+Przykładowe statusy:
+
+* Przyjęte,
+* W diagnozie,
+* W naprawie,
+* Oczekuje na części,
+* Gotowe,
+* Odebrane,
+* Odwołane.
+
+---
+
+### Kosztorys i widoczność kosztów
+
+System rozróżnia informacje widoczne dla serwisu i dla klienta.
+
+Admin może widzieć pełne koszty, np.:
+
+* koszt części,
+* koszt usługi,
+* marża,
+* statystyki finansowe.
+
+Klient lub pracownik może widzieć uproszczoną cenę całości, bez pełnego rozbicia kosztów.
+
+---
+
+### SMS do klienta
+
+Aplikacja może przygotowywać wiadomość SMS do klienta na podstawie statusu zlecenia.
+
+SMS nie jest wysyłany automatycznie w tle. Aplikacja otwiera systemową aplikację SMS z gotową treścią, a użytkownik może ją wysłać ręcznie.
+
+---
+
+### Zdjęcia
+
+Projekt korzysta z `expo-image-picker`, dzięki czemu można dodawać zdjęcia urządzenia do zlecenia.
+
+Docelowo zdjęcia mogą być przechowywane w Firebase Storage lub jako część struktury zlecenia, zależnie od konfiguracji projektu.
+
+---
+
+### Drukowanie / potwierdzenie przyjęcia
+
+Projekt zawiera obsługę generowania potwierdzenia przyjęcia zlecenia, które może zawierać:
+
+* dane klienta,
+* dane urządzenia,
+* numer zlecenia,
+* opis usterki,
+* dokument sprzedaży,
+* NIP,
+* koszt dla klienta,
+* warunki odbioru / gwarancji.
+
+Do tego wykorzystywane są biblioteki Expo związane z drukowaniem i udostępnianiem.
 
 ---
 
 ## Role użytkowników
 
-| Rola | Jak dostaje dostęp | Co widzi |
-|---|---|---|
-| 👑 **Admin** | Konto z najwyższymi uprawnieniami, niedostępne przez standardową rejestrację | Wszystko — pełne ceny, marże, raporty, zarządzanie użytkownikami |
-| 🔧 **Pracownik** | Rejestruje się jako klient, admin podnosi mu rolę | Zlecenia, skup — ale bez cen zakupu/sprzedaży/marży. Widzi tylko sumę do zapłaty |
-| 👤 **Klient** | Rejestruje się sam przez apkę (email+hasło lub Google) | Tylko własne zlecenia i terminy, sumę kosztorysu (bez rozbicia) |
+Aplikacja przewiduje podział na role:
 
-> 🔒 Każda nowa rejestracja przez formularz w apce **zawsze** dostaje rolę Klient — nie ma możliwości wyboru innej roli przy rejestracji, nawet teoretycznie. To wymuszone jest na dwóch poziomach (formularz i logika store), żeby nikt nie mógł sam sobie przyznać wyższych uprawnień.
+| Rola                   | Opis                                                                   |
+| ---------------------- | ---------------------------------------------------------------------- |
+| Admin                  | Pełny dostęp do zleceń, kosztów, statystyk i zarządzania użytkownikami |
+| Pracownik / Technician | Obsługa zleceń, przyjmowanie napraw, zmiana statusów                   |
+| Klient / Customer      | Dostęp tylko do swoich danych lub statusu własnego zlecenia            |
 
----
-
-## Czego potrzebujesz przed startem?
-
-| Co | Minimalna wersja | Jak sprawdzić |
-|---|---|---|
-| **Node.js** | v18 lub nowszy | `node --version` |
-| **npm** | v9 lub nowszy | `npm --version` |
-| **Expo Go** (apka na telefon) | najnowsza | App Store / Google Play |
-| **Konto Firebase** | darmowy plan Spark | [console.firebase.google.com](https://console.firebase.google.com) |
-| Git (opcjonalnie) | dowolna | `git --version` |
-
-> 💡 **Expo Go** to bezpłatna aplikacja — instalujesz ją na swoim telefonie i skanem kodu QR uruchamiasz projekt. Nie musisz instalować Androida ani Xcode!
+Nowy użytkownik nie powinien mieć możliwości samodzielnego nadania sobie roli admina. Role są obsługiwane przez Firebase i Cloud Functions.
 
 ---
 
-## Konfiguracja Firebase
+## Firebase i baza danych
 
-Logowanie wymaga własnego projektu Firebase (jest darmowy). Jeśli korzystasz z gotowego `google-services.json` dołączonego do tego repo — projekt jest już skonfigurowany i możesz przejść do [Instalacji](#instalacja-krok-po-kroku).
+Projekt korzysta z Firebase jako backendu.
 
-Jeśli konfigurujesz od zera:
+Wykorzystywane elementy:
 
-1. Wejdź na [console.firebase.google.com](https://console.firebase.google.com) → **Add project**
-2. W projekcie: **Build → Authentication → Get started**
-3. Zakładka **Sign-in method** → włącz **Email/Password** (i opcjonalnie **Google**)
-4. **Project settings → General → Add app → Android**, podaj package name: `pl.gsmserwis.app`
-5. Pobierz **`google-services.json`** i umieść go w głównym folderze projektu (`GSMServiceApp/google-services.json`)
-6. Zaktualizuj dane w `src/firebase/firebaseConfig.js` wartościami z pobranego pliku
+* **Firebase Authentication** — konta użytkowników,
+* **Cloud Firestore** — zlecenia, użytkownicy, liczniki,
+* **Cloud Functions** — logika ról i zapytań z panelu webowego,
+* **Firebase Hosting** — opcjonalny hosting panelu webowego.
 
-> ⚠️ Logowanie przez Google **nie działa w Expo Go** ze względu na ograniczenia OAuth (zmienny redirect URI w trybie deweloperskim). Zadziała poprawnie po zbudowaniu Development Build lub finalnego APK przez `eas build`. Email+hasło działa od razu, niezależnie od tego.
+Aplikacja nie działa już jako czysty mock/prototyp w pamięci aplikacji. Dane zleceń są zapisywane w Firestore, dzięki czemu mogą być dostępne z różnych urządzeń.
 
 ---
 
-## Instalacja krok po kroku
+## Struktura danych Firestore
 
-### Krok 1 — Pobierz Node.js (jeśli nie masz)
+Aktualnie używane kolekcje:
 
-Wejdź na [nodejs.org](https://nodejs.org) i pobierz wersję **LTS** (zieloną).
-
-### Krok 2 — Przejdź do folderu projektu
-
-```bash
-cd GSMServiceApp
+```txt
+counters
+meta
+repairs
+users
+bookingRequests
 ```
 
-### Krok 3 — Zainstaluj wszystkie zależności
+### `repairs`
+
+Kolekcja zleceń napraw.
+
+Przykładowy dokument:
+
+```js
+{
+  brand: "Samsung",
+  model: "Samsung Galaxy S24",
+  imei: "",
+  description: "Wymiana baterii",
+  displayNumber: "1/2026",
+
+  customerId: "USER_ID",
+  customerNip: "",
+  documentType: "Paragon",
+
+  partsCost: 0,
+  serviceCost: 350,
+
+  status: "Przyjęte",
+  estimateAccepted: null,
+
+  screenLock: "1234",
+  photos: [],
+
+  createdAt: "2026-06-28T13:05:37.112Z",
+  createdAtServer: Timestamp,
+
+  history: [
+    {
+      date: "2026-06-28T13:05:37.112Z",
+      status: "Przyjęte"
+    }
+  ]
+}
+```
+
+### `users`
+
+Kolekcja użytkowników / klientów.
+
+Przykładowe pola:
+
+```js
+{
+  email: "klient@example.com",
+  fullName: "Jan Kowalski",
+  phone: "500000000",
+  role: "customer"
+}
+```
+
+Dla działania wyszukiwania po numerze telefonu ważne jest, aby klient miał zapisany numer telefonu, np. w polu:
+
+```txt
+phone
+phoneNumber
+customerPhone
+tel
+mobile
+```
+
+### `counters`
+
+Kolekcja liczników, np. do numeracji zleceń w danym roku.
+
+Przykład:
+
+```txt
+counters / 2026
+count: 1
+```
+
+### `bookingRequests`
+
+Kolekcja zgłoszeń z panelu webowego lub formularza online.
+
+Może zawierać:
+
+```js
+{
+  name: "Jan Kowalski",
+  phone: "500000000",
+  brand: "Samsung",
+  model: "Galaxy S24",
+  description: "Nie ładuje",
+  preferredDate: "2026-06-30",
+  status: "Nowe zgłoszenie",
+  source: "web",
+  createdAt: "2026-06-28T..."
+}
+```
+
+---
+
+## Cloud Functions
+
+Projekt korzysta z funkcji callable Firebase Functions.
+
+Wdrożone funkcje backendowe:
+
+```txt
+decideInitialRole
+setUserRoleClaim
+syncOwnRoleClaim
+lookupRepair
+lookupRepairsByPhone
+acceptEstimateWeb
+rejectEstimateWeb
+createBookingRequestWeb
+```
+
+### Funkcje ról
+
+```txt
+decideInitialRole
+setUserRoleClaim
+syncOwnRoleClaim
+```
+
+Odpowiadają za przypisywanie i synchronizację ról użytkowników.
+
+### Funkcje panelu webowego
+
+```txt
+lookupRepair
+lookupRepairsByPhone
+acceptEstimateWeb
+rejectEstimateWeb
+createBookingRequestWeb
+```
+
+Służą do:
+
+* wyszukiwania zlecenia po numerze zlecenia i telefonie,
+* wyszukiwania zleceń po numerze telefonu,
+* akceptacji kosztorysu z panelu webowego,
+* odrzucenia kosztorysu z panelu webowego,
+* tworzenia zgłoszeń naprawy z formularza webowego.
+
+---
+
+## Instalacja
+
+### Wymagania
+
+| Narzędzie    | Wersja                        |
+| ------------ | ----------------------------- |
+| Node.js      | zalecana LTS                  |
+| npm          | v9 lub nowszy                 |
+| Expo CLI     | przez `npx expo`              |
+| Firebase CLI | przez `npx firebase-tools`    |
+| Expo Go      | najnowsza wersja na telefonie |
+
+---
+
+### Pobranie projektu
+
+```bash
+git clone https://github.com/frajewski/gsm.git
+cd gsm
+```
+
+---
+
+### Instalacja zależności
+
+```bash
+npm install
+```
+
+Jeśli pojawią się konflikty zależności:
 
 ```bash
 npm install --legacy-peer-deps
 ```
 
-> Flaga `--legacy-peer-deps` jest potrzebna ze względu na niektóre pakiety Expo — bez niej instalacja może się wywalić z błędem konfliktu wersji.
-
-### Krok 4 — Dociągnij natywne paczki zgodne z wersją Expo
+Po większych zmianach można też użyć:
 
 ```bash
 npx expo install --fix
@@ -124,26 +342,19 @@ npx expo install --fix
 
 ---
 
-## Uruchomienie
+## Uruchomienie aplikacji
 
 ```bash
 npx expo start
 ```
 
-W terminalu pojawi się **kod QR**. Co dalej:
+Po uruchomieniu Metro Bundlera:
 
-**Na telefonie (rekomendowane):**
-1. Otwórz aplikację **Expo Go**
-2. Zeskanuj kod QR z terminala (aparatem albo wewnątrz Expo Go)
-3. Aplikacja załaduje się na Twoim telefonie ✅
+* zeskanuj kod QR aplikacją Expo Go,
+* albo uruchom Androida klawiszem `a`,
+* albo uruchom iOS klawiszem `i` na Macu.
 
-**Na emulatorze Android:**
-- Naciśnij klawisz `a` w terminalu (wymaga Android Studio)
-
-**Na symulatorze iOS (tylko Mac):**
-- Naciśnij klawisz `i` w terminalu (wymaga Xcode, symulator musi być wcześniej otwarty)
-
-Jeśli po większych zmianach w kodzie coś nie działa poprawnie, prawie zawsze pomaga:
+Jeżeli aplikacja ładuje starą wersję albo dziwnie się zachowuje:
 
 ```bash
 npx expo start --clear
@@ -151,214 +362,212 @@ npx expo start --clear
 
 ---
 
-## Logowanie — jak zacząć
+## Build APK / EAS
 
-### 🔑 Gotowe konta testowe (do szybkiego sprawdzenia aplikacji)
+Projekt zawiera konfigurację `eas.json`, więc można budować aplikację przez Expo Application Services.
 
-Poniższe konta są już zarejestrowane i gotowe do użycia — wystarczy się zalogować, bez przechodzenia przez rejestrację:
+Instalacja / uruchomienie EAS:
 
-| Rola | Email | Hasło |
-|---|---|---|
-| 👑 Admin | `kontaktfonexpert@gmail.com` | `Filip123!` |
-| 🔧 Pracownik | `pracownik@test.pl` | `123456` |
-| 👤 Klient | `klient@test.pl` | `123456` |
+```bash
+npx eas-cli@latest login
+```
 
-> ⚠️ To konta testowe stworzone wyłącznie do oceny tego prototypu — projekt Firebase, na którym działają, jest tymczasowy i zostanie usunięty po zakończeniu oceny.
+Build Android:
 
----
+```bash
+npx eas-cli@latest build -p android
+```
 
-Niezależnie od kont powyżej, aplikacja **nie ma żadnych "kont demo" do zalogowania jednym kliknięciem** — logowanie idzie przez prawdziwy Firebase Authentication, więc każde nowe konto musi zostać faktycznie zarejestrowane.
+Build APK, jeśli profil jest skonfigurowany w `eas.json`:
 
-### Pierwsze logowanie
-
-Przy pierwszym uruchomieniu zarejestruj się normalnie przez formularz "Zarejestruj się". Domyślnie nowo zarejestrowane konto dostaje rolę Klient — przypisanie roli Admina lub Pracownika dla wybranych kont odbywa się poza standardowym formularzem rejestracji, jako dodatkowy krok konfiguracji po stronie właściciela serwisu.
-
-### Konta pracowników i klientów
-
-Każda osoba rejestruje się sama przez ekran "Zarejestruj się" — dostaje automatycznie rolę Klient. Jeśli ma być pracownikiem serwisu, zaloguj się jako Admin i w **Dashboard → Użytkownicy** zmień jej rolę na Pracownik.
-
-### Przykładowi klienci (dane testowe, NIE konta do logowania)
-
-W bazie są trzy rekordy testowych klientów — **Anna Nowak**, **Piotr Wiśniewski**, **Karolina Zając**. To nie są konta z logowaniem (nie mają hasła, oznaczone jako `isWalkIn: true`) — to przykładowe dane do testowania list i wyboru klienta przy przyjmowaniu zlecenia, symulujące klientów "papierowych" dodanych ręcznie przez pracownika (np. gdy klient nie ma jeszcze konta w apce).
-
-> 💡 Jeśli realny klient o takim samym adresie email kiedyś się zarejestruje, system automatycznie scali jego nowe konto z tymi danymi testowymi, zachowując historię zleceń.
+```bash
+npx eas-cli@latest build -p android --profile preview
+```
 
 ---
 
 ## Struktura projektu
 
-```
-GSMServiceApp/
-├── App.js                       ← punkt startowy, nasłuchuje sesji Firebase
-├── app.json                     ← konfiguracja Expo (nazwa, ikona, uprawnienia, scheme)
-├── google-services.json         ← konfiguracja Firebase (Android)
-├── package.json                 ← lista bibliotek
-│
+Przykładowa struktura:
+
+```txt
+gsm/
+├── App.js
+├── app.json
+├── eas.json
+├── google-services.json
+├── metro.config.js
+├── package.json
+├── privacy-policy.html
 └── src/
-    ├── components/              ← wielokrotnego użytku "klocki UI"
-    │   ├── Button.jsx           ← przycisk (primary/ghost/danger/success)
-    │   ├── Card.jsx             ← biała karta z cieniem
-    │   ├── FAB.jsx              ← pływający przycisk "+"
-    │   ├── ImeiScanner.jsx      ← skaner kodu kreskowego (expo-camera)
-    │   ├── RepairListItem.jsx   ← wiersz na liście zleceń
-    │   ├── SectionHeader.jsx    ← nagłówek sekcji z licznikiem
-    │   └── StatusBadge.jsx      ← kolorowy chip statusu
-    │
-    ├── constants/                ← niezmienne wartości
-    │   ├── bookingStatuses.js   ← statusy rezerwacji terminu
-    │   ├── brands.js            ← lista marek telefonów
-    │   ├── colors.js            ← WSZYSTKIE kolory aplikacji
-    │   ├── documentTypes.js     ← Paragon / Faktura
-    │   ├── grades.js            ← grade stanu telefonu w skupie (A–D)
-    │   ├── roles.js             ← admin / worker / customer
-    │   ├── statuses.js          ← statusy naprawy + kolory + ikony
-    │   ├── storageOptions.js    ← pojemności pamięci (32GB–1TB)
-    │   ├── tradeSources.js      ← źródła zakupu telefonu w skupie
-    │   ├── tradeStatuses.js     ← statusy telefonu w skupie
-    │   └── warrantyPeriods.js   ← okresy gwarancji + liczenie daty końca
-    │
-    ├── data/
-    │   └── mockDb.js            ← "baza danych" — tablice w pamięci + CRUD + scalanie kont
-    │
+    ├── components/
+    ├── constants/
     ├── firebase/
-    │   ├── firebaseConfig.js        ← inicjalizacja Firebase
-    │   ├── firebaseAuthService.js   ← logowanie/rejestracja email+hasło
-    │   ├── googleAuthService.js     ← logowanie przez Google
-    │   └── userProfileService.js    ← łączenie profilu Firebase z rolą/danymi lokalnymi
-    │
     ├── navigation/
-    │   └── RootNavigator.jsx    ← routing: zalogowany/niezalogowany, uprawnienia w nagłówkach
-    │
-    ├── screens/                  ← ekrany aplikacji
-    │   ├── LoginScreen.jsx           ← logowanie (email+hasło, Google)
-    │   ├── RegisterScreen.jsx        ← rejestracja (zawsze rola Klient)
-    │   ├── DashboardScreen.jsx       ← ekran główny z dużymi kartami modułów
-    │   ├── HomeScreen.jsx            ← lista zleceń + wyszukiwarka + filtry
-    │   ├── AddRepairScreen.jsx       ← formularz nowego zlecenia
-    │   ├── RepairDetailsScreen.jsx   ← szczegóły + zmiana statusu + gwarancja + SMS
-    │   ├── RepairConfirmScreen.jsx   ← drukowane potwierdzenie przyjęcia
-    │   ├── CustomerCardScreen.jsx    ← historia klienta
-    │   ├── EstimateScreen.jsx        ← kosztorys (edycja / akceptacja)
-    │   ├── StatsScreen.jsx           ← statystyki finansowe serwisu
-    │   ├── ProfileScreen.jsx         ← profil + wylogowanie
-    │   ├── SettingsScreen.jsx        ← ustawienia wydruku/potwierdzeń (admin)
-    │   ├── BookingRequestScreen.jsx  ← klient umawia naprawę (kalendarz)
-    │   ├── BookingListScreen.jsx     ← lista umówionych terminów
-    │   ├── BookingDetailScreen.jsx   ← odpowiedź na termin / konwersja na zlecenie
-    │   ├── UserManagementScreen.jsx  ← zmiana ról użytkowników (admin)
-    │   ├── TradeHomeScreen.jsx       ← lista telefonów w skupie
-    │   ├── TradeAddScreen.jsx        ← formularz dodania telefonu do skupu
-    │   ├── TradeDetailScreen.jsx     ← szczegóły telefonu, status, cena sprzedaży
-    │   └── TradeStatsScreen.jsx      ← raport finansowy skupu (admin)
-    │
+    ├── screens/
     ├── services/
-    │   ├── authService.js       ← walidacja email/telefonu
-    │   └── smsService.js        ← szablony SMS (otwiera aplikację SMS)
-    │
     ├── store/
-    │   ├── useStore.js          ← globalny stan (Zustand) — auth, naprawy, terminy, skup
-    │   └── useSettings.js       ← ustawienia wydruku potwierdzeń
-    │
     └── utils/
-        ├── formatDate.js        ← formatowanie dat po polsku
-        ├── calcProfit.js        ← obliczenia zysku serwisu, statystyki
-        └── calcTrade.js         ← obliczenia zysku ze skupu telefonów
 ```
 
-### Jak to działa w skrócie?
+### Najważniejsze katalogi
 
+| Katalog          | Opis                                                         |
+| ---------------- | ------------------------------------------------------------ |
+| `src/components` | komponenty UI wielokrotnego użytku                           |
+| `src/constants`  | statusy, role, kolory, typy dokumentów, marki itd.           |
+| `src/firebase`   | konfiguracja Firebase i usługi związane z autoryzacją / bazą |
+| `src/navigation` | nawigacja aplikacji                                          |
+| `src/screens`    | ekrany aplikacji                                             |
+| `src/services`   | usługi pomocnicze, np. SMS                                   |
+| `src/store`      | globalny stan aplikacji                                      |
+| `src/utils`      | funkcje pomocnicze, np. formatowanie dat                     |
+
+---
+
+## Panel webowy i śledzenie zleceń
+
+Oprócz aplikacji mobilnej rozwijany jest panel webowy.
+
+Docelowo panel ma umożliwiać:
+
+* klientowi sprawdzenie statusu zlecenia,
+* wyszukiwanie zlecenia po numerze i telefonie,
+* akceptację lub odrzucenie kosztorysu,
+* wysłanie zgłoszenia naprawy,
+* pracę z komputera przez panel admina.
+
+Planowane śledzenie zlecenia powinno działać przez token:
+
+```txt
+https://twoja-domena.pl/?token=TRACKING_TOKEN
 ```
-Użytkownik naciska przycisk
-        ↓
-   Komponent (Screen)
-        ↓
-  useStore (Zustand)      ← globalny stan, dostępny wszędzie
-        ↓
-    mockDb.js             ← dane operacyjne w pamięci (zlecenia, telefony, terminy)
-        +
-  Firebase Auth           ← logowanie, hasła, sesja użytkownika
-        ↓
-  Stan zaktualizowany → UI odświeżony automatycznie
+
+Przy tworzeniu zlecenia aplikacja może generować:
+
+```js
+trackingToken: "losowy-token"
+trackingUrl: "https://twoja-domena.pl/?token=losowy-token"
 ```
+
+Dzięki temu klient może wejść bez logowania w bezpieczny link do śledzenia konkretnego zlecenia.
 
 ---
 
 ## Najczęstsze problemy
 
-### ❌ `Error: The required package 'expo-asset' cannot be found`
-Po większych zmianach w zależnościach `node_modules` wymaga przebudowy:
-```bash
-rm -rf node_modules package-lock.json
-npm install --legacy-peer-deps
-npx expo install --fix
-npx expo start --clear
-```
+### `FirebaseError: Missing or insufficient permissions`
 
-### ❌ `Identifier 'X' has already been declared`
-Błąd składni w kodzie (np. zdublowana deklaracja zmiennej) — to nie problem środowiska, plik wymaga poprawki.
+Problem z regułami Firestore albo rolą użytkownika.
 
-### ❌ Logowanie Google: "Dostęp zablokowany: błąd autoryzacji" (Error 400: invalid_request)
-To znane ograniczenie Expo Go — redirect URI generowany w trybie deweloperskim (`exp://192.168.x.x:8081`) nie może zostać zarejestrowany w Google Cloud Console, bo zmienia się z każdą siecią Wi-Fi. Email+hasło działa bez przeszkód. Google Sign-In zadziała poprawnie po zbudowaniu Development Build lub finalnego APK.
+Sprawdź:
 
-### ❌ Po rejestracji konto ma złą rolę
-Sprawdź, czy rejestrujesz się na adres email, który nie pokrywa się z żadnym innym kontem w `mockDb.js` — system automatycznie scala konta o identycznym adresie email, co może przywrócić wcześniej zapisaną rolę.
-
-### ❌ Telefon i komputer są w różnych sieciach Wi-Fi
-Expo Go i komputer muszą być w **tej samej sieci Wi-Fi**.
-Alternatywnie w terminalu naciśnij `s` → wybierz "Expo Go (tunnel)" — działa przez internet.
-
-### ❌ `Metro bundler` kręci się w kółko / nieaktualny widok po zmianach
-```bash
-npx expo start --clear
-```
-
-### ❌ Terminal: `Error: EPERM: process.cwd failed`
-Terminal "zgubił" aktualny folder, zwykle po usunięciu/przeniesieniu folderu projektu. Zamknij całe okno terminala i otwórz nowe, potem `cd` do folderu jeszcze raz.
-
-### ❌ Zdjęcia nie działają (ImagePicker)
-Na iPhonie/Androidzie trzeba zaakceptować uprawnienie do galerii przy pierwszym użyciu.
-Jeśli odrzuciłeś — wejdź w Ustawienia → Expo Go → Zdjęcia → Zezwól.
-
-### ❌ SMS nie wysyła się automatycznie
-Funkcja otwiera aplikację SMS na telefonie — nie wysyła wiadomości samodzielnie w tle. Na emulatorze/symulatorze może nie działać — testuj na prawdziwym telefonie.
+* czy użytkownik jest zalogowany,
+* czy ma odpowiednią rolę w `users`,
+* czy Cloud Function zsynchronizowała custom claims,
+* czy reguły Firestore pozwalają na daną operację.
 
 ---
 
-## Znane ograniczenia
+### `functions/internal`
 
-- **Dane operacyjne nie są trwałe.** Zlecenia, telefony w skupie i umówione terminy żyją tylko w pamięci aplikacji (`mockDb.js`) — restart Metro bundlera albo przebudowanie projektu resetuje je do stanu początkowego. Tylko konta i hasła (Firebase Auth) są trwałe.
-- **Google Sign-In nie działa w Expo Go** — wymaga Development Build albo finalnego APK (patrz wyżej).
-- **Scalanie kont działa tylko po identycznym adresie email** — literówka albo inny adres oznacza dwa osobne profile bez połączonej historii.
-- **Numeracja zleceń może mieć dziury** po usunięciu zlecenia — to zachowanie zbliżone do numeracji faktur w typowych systemach księgowych, nie błąd.
+Błąd po stronie Cloud Functions.
+
+Sprawdź logi:
+
+```bash
+npx firebase-tools@latest functions:log --project gsmserviceapp-ff8f6
+```
+
+Dla konkretnej funkcji:
+
+```bash
+npx firebase-tools@latest functions:log --only lookupRepair --project gsmserviceapp-ff8f6
+```
+
+---
+
+### Firebase CLI nie instaluje się globalnie
+
+Jeśli występuje błąd `EACCES`, nie instaluj globalnie.
+
+Używaj:
+
+```bash
+npx firebase-tools@latest <komenda>
+```
+
+Przykład:
+
+```bash
+npx firebase-tools@latest functions:list --project gsmserviceapp-ff8f6
+```
+
+---
+
+### Expo pokazuje starą wersję aplikacji
+
+Wyczyść cache:
+
+```bash
+npx expo start --clear
+```
+
+---
+
+### SMS nie wysyła się automatycznie
+
+To normalne. Aplikacja otwiera systemową aplikację SMS z gotową treścią. Użytkownik musi kliknąć wysłanie ręcznie.
+
+---
+
+### Google Sign-In nie działa w Expo Go
+
+Logowanie Google może wymagać development builda lub finalnego APK, ponieważ Expo Go ma ograniczenia związane z redirect URI OAuth.
+
+Email i hasło działają bez tego ograniczenia.
 
 ---
 
 ## Technologie
 
-| Biblioteka | Do czego |
-|---|---|
-| **React Native + Expo** | framework aplikacji mobilnych |
-| **Firebase Authentication** | logowanie, rejestracja, sesje użytkowników |
-| **@react-navigation/native-stack** | nawigacja między ekranami |
-| **Zustand** | globalny stan aplikacji |
-| **expo-camera** | skaner IMEI w module skupu |
-| **expo-image-picker** | wybieranie zdjęć z galerii |
-| **expo-linear-gradient** | gradienty na ekranie głównym i logowania |
-| **expo-auth-session / expo-web-browser** | logowanie przez Google |
-| **@react-native-async-storage/async-storage** | trwałość sesji logowania |
-| **react-native-paper** | gotowe komponenty Material Design |
+| Technologia              | Zastosowanie                   |
+| ------------------------ | ------------------------------ |
+| React Native             | aplikacja mobilna              |
+| Expo                     | uruchamianie i build aplikacji |
+| Firebase Authentication  | logowanie i rejestracja        |
+| Cloud Firestore          | baza danych                    |
+| Firebase Cloud Functions | backend / role / panel webowy  |
+| React Navigation         | nawigacja między ekranami      |
+| Zustand                  | globalny stan aplikacji        |
+| Expo Camera              | skaner IMEI / kodów            |
+| Expo Image Picker        | wybieranie zdjęć               |
+| Expo SMS                 | przygotowanie wiadomości SMS   |
+| Expo Print / Sharing     | potwierdzenia i udostępnianie  |
+| React Native Paper       | komponenty UI                  |
 
 ---
 
-## Dalszy rozwój (możliwe kierunki)
+## Dalszy rozwój
 
-- [ ] Podpięcie trwałej bazy danych (np. Firestore) zamiast danych w pamięci
-- [ ] Development Build / finalny APK do pełnego działania logowania Google
-- [ ] Push notyfikacje zamiast SMS
-- [ ] Eksport zleceń i raportów do PDF
-- [ ] Tryb ciemny (dark mode)
-- [ ] Automatyczne powiadomienia dla klienta o zmianie statusu naprawy
+Planowane lub możliwe kierunki:
+
+* generowanie linku śledzenia przy każdym zleceniu,
+* automatyczne kopiowanie linku śledzenia,
+* wysyłanie linku SMS-em do klienta,
+* pełny panel webowy dla admina i pracownika,
+* obsługa komputera i telefonu przez jeden panel webowy,
+* podpięcie własnej domeny,
+* Firebase Hosting dla panelu,
+* Firebase Storage dla zdjęć,
+* eksport potwierdzeń do PDF,
+* statystyki miesięczne i roczne,
+* filtrowanie zleceń po statusie, marce, telefonie, IMEI i numerze zlecenia,
+* rozbudowane role: admin / pracownik / klient,
+* powiadomienia push.
 
 ---
 
-*Projekt rozwijany jako działający prototyp serwisu GSM, z myślą o realnym użyciu w codziennej pracy serwisu i sklepu.*
+## Status projektu
+
+Projekt jest aktywnie rozwijany jako aplikacja do realnej obsługi serwisu GSM. Aktualna wersja korzysta z Firebase i Firestore, a nie wyłącznie z danych tymczasowych w pamięci aplikacji.
